@@ -1,0 +1,318 @@
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #7f0562;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: hsl(50, 79%, 54%);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 600px;
+            padding: 20px;
+            text-align: center;
+        }
+        .form-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+        .input-field {
+            padding: 12px;
+            width: 80%;
+            max-width: 300px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+        .btn {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1em;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px;
+            transition: background-color 0.3s;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .link-btn {
+            background: none;
+            border: none;
+            color: #007bff;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        .quiz-section {
+            display: none;
+        }
+        .question {
+            font-size: 1.2em;
+            margin: 20px 0;
+        }
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .option {
+            padding: 12px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .option:hover {
+            background-color: #007bff;
+            color: #fff;
+        }
+        .timer {
+            font-size: 1.2em;
+            margin: 20px 0;
+            color: #ff5722;
+        }
+        .result {
+            font-size: 1.5em;
+            color: #4caf50;
+        }
+        .high-score {
+            margin-top: 15px;
+            font-size: 1.2em;
+            color: #ff9800;
+        }
+        .error-message {
+            color: #ff0000;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Login Section -->
+        <div id="login-section" class="form-section">
+            <h2>Login to Quiz App</h2>
+            <input type="text" class="input-field" id="login-username" placeholder="Username" required>
+            <input type="password" class="input-field" id="login-password" placeholder="Password" required>
+            <button class="btn" onclick="login()">Login</button>
+            <button class="link-btn" onclick="showSignup()">New user? Sign up here</button>
+            <div id="login-error" class="error-message"></div>
+        </div>
+
+        <!-- Signup Section -->
+        <div id="signup-section" class="form-section" style="display: none;">
+            <h2>Create Account</h2>
+            <input type="text" class="input-field" id="signup-username" placeholder="Choose Username" required>
+            <input type="password" class="input-field" id="signup-password" placeholder="Choose Password" required>
+            <input type="password" class="input-field" id="confirm-password" placeholder="Confirm Password" required>
+            <button class="btn" onclick="signup()">Sign Up</button>
+            <button class="link-btn" onclick="showLogin()">Already have an account? Login</button>
+            <div id="signup-error" class="error-message"></div>
+        </div>
+
+        <!-- Quiz Section -->
+        <div id="quiz-section" class="quiz-section">
+            <div class="timer">Time Left: <span id="time">30</span>s</div>
+            <div class="question">Question will appear here</div>
+            <div class="options"></div>
+            <div class="result" style="display: none;">
+                Your score: <span id="score">0</span>
+                <div class="high-score">Highest Score: <span id="highScore">0</span></div>
+                <div>Player: <span id="currentPlayer"></span></div>
+            </div>
+            <button class="btn restart-btn" style="display: none;">Restart Quiz</button>
+            <button class="btn logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <script>
+        // Store users and their data
+        let users = JSON.parse(localStorage.getItem('quizUsers')) || {};
+        let currentUser = '';
+
+        const quizData = [
+            {
+                question: "What is the capital of France?",
+                options: ["Berlin", "Madrid", "Paris", "Lisbon"],
+                answer: "Paris"
+            },
+            {
+                question: "Which language is used for web development?",
+                options: ["Python", "HTML", "Java", "C++"],
+                answer: "HTML"
+            },
+            {
+                question: "Who wrote 'Hamlet'?",
+                options: ["Charles Dickens", "William Shakespeare", "Mark Twain", "Jane Austen"],
+                answer: "William Shakespeare"
+            }
+            
+        ];
+
+        // Quiz variables
+        let currentQuestion = 0;
+        let score = 0;
+        let timeLeft = 30;
+        let timerInterval;
+
+        // DOM Elements
+        const loginSection = document.getElementById('login-section');
+        const signupSection = document.getElementById('signup-section');
+        const quizSection = document.getElementById('quiz-section');
+        const loginError = document.getElementById('login-error');
+        const signupError = document.getElementById('signup-error');
+
+        // Authentication Functions
+        function showSignup() {
+            loginSection.style.display = 'none';
+            signupSection.style.display = 'flex';
+            loginError.textContent = '';
+        }
+
+        function showLogin() {
+            loginSection.style.display = 'flex';
+            signupSection.style.display = 'none';
+            signupError.textContent = '';
+        }
+
+        function signup() {
+            const username = document.getElementById('signup-username').value;
+            const password = document.getElementById('signup-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+
+            if (password !== confirmPassword) {
+                signupError.textContent = 'Passwords do not match!';
+                return;
+            }
+
+            if (users[username]) {
+                signupError.textContent = 'Username already exists!';
+                return;
+            }
+
+            users[username] = {
+                password: password,
+                highScore: 0
+            };
+            localStorage.setItem('quizUsers', JSON.stringify(users));
+            showLogin();
+        }
+
+        function login() {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+
+            if (users[username] && users[username].password === password) {
+                currentUser = username;
+                loginSection.style.display = 'none';
+                quizSection.style.display = 'block';
+                document.getElementById('currentPlayer').textContent = username;
+                document.getElementById('highScore').textContent = users[username].highScore;
+                startQuiz();
+            } else {
+                loginError.textContent = 'Invalid username or password!';
+            }
+        }
+
+        function logout() {
+            currentUser = '';
+            quizSection.style.display = 'none';
+            loginSection.style.display = 'flex';
+            resetQuiz();
+        }
+
+        // Quiz Functions
+        function startQuiz() {
+            resetQuiz();
+            loadQuestion();
+        }
+
+        function resetQuiz() {
+            currentQuestion = 0;
+            score = 0;
+            timeLeft = 30;
+            clearInterval(timerInterval);
+            document.querySelector('.result').style.display = 'none';
+            document.querySelector('.restart-btn').style.display = 'none';
+            document.querySelector('.question').style.display = 'block';
+            document.querySelector('.options').style.display = 'block';
+        }
+
+        function loadQuestion() {
+            if (currentQuestion >= quizData.length) {
+                endQuiz();
+                return;
+            }
+
+            clearInterval(timerInterval);
+            timeLeft = 30;
+            document.getElementById('time').textContent = timeLeft;
+            startTimer();
+
+            const currentQuiz = quizData[currentQuestion];
+            document.querySelector('.question').textContent = currentQuiz.question;
+            
+            const optionsEl = document.querySelector('.options');
+            optionsEl.innerHTML = '';
+            currentQuiz.options.forEach(option => {
+                const button = document.createElement('button');
+                button.classList.add('option');
+                button.textContent = option;
+                button.onclick = () => checkAnswer(option);
+                optionsEl.appendChild(button);
+            });
+        }
+
+        function checkAnswer(selectedOption) {
+            if (selectedOption === quizData[currentQuestion].answer) {
+                score++;
+            }
+            currentQuestion++;
+            loadQuestion();
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('time').textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    endQuiz();
+                }
+            }, 1000);
+        }
+
+        function endQuiz() {
+            clearInterval(timerInterval);
+            document.querySelector('.question').style.display = 'none';
+            document.querySelector('.options').style.display = 'none';
+            document.querySelector('.result').style.display = 'block';
+            document.getElementById('score').textContent = score;
+
+            // Update high score if current score is higher
+            if (score > users[currentUser].highScore) {
+                users[currentUser].highScore = score;
+                localStorage.setItem('quizUsers', JSON.stringify(users));
+                document.getElementById('highScore').textContent = score;
+            }
+
+            document.querySelector('.restart-btn').style.display = 'block';
+        }
+
+        // Event Listeners
+        document.querySelector('.restart-btn').addEventListener('click', startQuiz);
+    </script>
+</body>
+</html>
